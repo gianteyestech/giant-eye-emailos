@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Giant Eye EmailOS | Unified cPanel Mail Management</title>
+  
+  <!-- PWA & Mobile Meta Tags -->
+  <meta name="theme-color" content="#0a0d14">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="EmailOS">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" type="image/svg+xml" href="/icons/icon-192.svg">
+  <link rel="apple-touch-icon" href="/icons/icon-192.svg">
+
+  <!-- Google Fonts: Outfit & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+
+  <!-- Toast Notification System -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- App Shell -->
+  <div class="app-container">
+
+    <!-- Top Sticky Header -->
+    <header class="top-header">
+      <div class="header-row-primary">
+        <div class="brand-badge">
+          <div class="brand-icon">GE</div>
+          <div class="brand-titles">
+            <span class="brand-name">
+              Giant Eye EmailOS
+              <span class="brand-cpanel-pill">cPanel Sync</span>
+            </span>
+            <span class="brand-subtitle" id="connectionStatusSubtitle">Not Connected</span>
+          </div>
+        </div>
+
+        <div class="header-actions">
+          <button class="icon-btn" id="refreshBtn" title="Sync All Mailboxes">
+            🔄
+          </button>
+          <button class="icon-btn" id="quickComposeBtn" title="Quick Compose">
+            ✏️
+          </button>
+          <button class="icon-btn" id="headerLogoutBtn" onclick="handleLogout()" title="Disconnect / Switch cPanel Account" style="color: var(--danger);">
+            🚪
+          </button>
+        </div>
+      </div>
+
+      <!-- Quick Account Switcher Bar (Tappable to pick any account) -->
+      <div class="account-selector-bar" id="accountSwitcherTrigger">
+        <div class="active-account-info">
+          <div class="account-avatar all-inboxes" id="currentAvatar">📬</div>
+          <div class="account-text">
+            <span class="account-label" id="currentAccountLabel">All Inboxes (Unified)</span>
+            <span class="account-domain-badge" id="currentAccountSub">0 Accounts Connected</span>
+          </div>
+        </div>
+        <div class="account-switch-arrow">▼</div>
+      </div>
+
+      <!-- Domain Chips (Scrollable filter) -->
+      <div class="domain-scroll-bar" id="domainFilterBar">
+        <button class="filter-chip active" data-domain="all">
+          All Domains <span class="chip-count" id="chipCountAll">0</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- ============================================ -->
+    <!-- TAB 1: INBOX & WEBMAIL (Send & Receive)       -->
+    <!-- ============================================ -->
+    <main class="tab-content active" id="tabInbox">
+      <!-- Search & Filters -->
+      <div class="search-container">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="emailSearchInput" class="search-input" placeholder="Search emails, senders, or domains...">
+      </div>
+
+      <div class="folder-pill-bar">
+        <button class="folder-btn active" data-folder="inbox">
+          📥 Inbox <span id="inboxCountBadge"></span>
+        </button>
+        <button class="folder-btn" data-folder="sent">
+          📤 Sent
+        </button>
+        <button class="folder-btn" data-folder="trash">
+          🗑️ Trash
+        </button>
+        <button class="folder-btn" id="filterUnreadOnlyBtn" style="margin-left: auto;">
+          ✉️ Unread only
+        </button>
+      </div>
+
+      <!-- Email Messages List -->
+      <div class="email-list" id="emailListContainer">
+        <!-- Rendered dynamically -->
+        <div style="text-align: center; padding: 40px; color: var(--text-dim);">Loading emails...</div>
+      </div>
+    </main>
+
+    <!-- ============================================ -->
+    <!-- TAB 2: ACCOUNTS MANAGER (cPanel Admin View)  -->
+    <!-- ============================================ -->
+    <section class="tab-content" id="tabAccounts">
+      <!-- Stats summary card -->
+      <div class="accounts-stats-card">
+        <div class="stats-group">
+          <div class="stat-item">
+            <span class="stat-val" id="statTotalAccounts">0</span>
+            <span class="stat-lbl">Accounts</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-val" id="statStorageTotal">0 B</span>
+            <span class="stat-lbl">Used Space</span>
+          </div>
+        </div>
+        <button class="btn-create-acc" id="openCreateAccountBtn">
+          <span>+</span> New Email
+        </button>
+      </div>
+
+      <!-- Search in Accounts -->
+      <div class="search-container">
+        <span class="search-icon">🔎</span>
+        <input type="text" id="accountSearchInput" class="search-input" placeholder="Search mailboxes or domains...">
+      </div>
+
+      <!-- List of Accounts -->
+      <div id="accountsListContainer">
+        <!-- Dynamically rendered -->
+      </div>
+    </section>
+
+    <!-- ============================================ -->
+    <!-- TAB 3: SERVER SETTINGS (One-time Setup)       -->
+    <!-- ============================================ -->
+    <section class="tab-content" id="tabSettings">
+      <div class="settings-section-card">
+        <div class="settings-title">
+          <span>⚙️</span> One-Time cPanel Connection
+        </div>
+        <p class="settings-desc">
+          Connect your cPanel server to manage your email accounts, create mailboxes, and sync webmail in Giant Eye EmailOS.
+        </p>
+
+        <form id="serverConfigForm">
+          <div class="form-group">
+            <label class="form-label" for="cfgServerUrl">cPanel Server URL (Hostname)</label>
+            <input type="text" id="cfgServerUrl" class="form-input" placeholder="e.g. https://your-server.web-hosting.com:2083" required>
+            <span class="form-hint">Usually found in your hosting welcome email or cPanel address bar (Port 2083).</span>
+          </div>
+
+          <div class="form-group" style="margin-top: 10px;">
+            <label class="form-label" for="cfgUsername">cPanel Username</label>
+            <input type="text" id="cfgUsername" class="form-input" placeholder="e.g. your_cpanel_username" required>
+          </div>
+
+          <div class="form-group" style="margin-top: 10px;">
+            <label class="form-label" for="cfgApiToken">cPanel API Token (Recommended) or Password</label>
+            <input type="password" id="cfgApiToken" class="form-input" placeholder="Enter API Token or Password" required>
+            <span class="form-hint">Using an API Token is secure and never expires.</span>
+          </div>
+
+          <div style="display: flex; gap: 10px; margin-top: 16px;">
+            <button type="button" class="btn-secondary" id="btnTestConnection" style="flex: 1;">
+              🔌 Test Connection
+            </button>
+            <button type="submit" class="btn-primary" style="flex: 1;">
+              💾 Save & Sync
+            </button>
+          </div>
+        </form>
+
+        <div style="margin-top: 12px; display: flex; flex-direction: column; gap: 8px;">
+          <button type="button" class="btn-secondary" id="btnServerLogout" onclick="handleLogout()" style="width: 100%; font-size: 12px; color: var(--danger); border-color: rgba(239, 68, 68, 0.35); background: rgba(239, 68, 68, 0.08);">
+            🚪 Disconnect Current cPanel Account / Logout
+          </button>
+        </div>
+      </div>
+
+      <!-- Quick Namecheap Tutorial -->
+      <div class="namecheap-guide-card">
+        <strong>💡 How to create an API Token in Namecheap cPanel:</strong>
+        <ol>
+          <li>Log in to your Namecheap cPanel.</li>
+          <li>In the search box at top, type <strong>"Manage API Tokens"</strong>.</li>
+          <li>Click <strong>+ Create</strong>, name it <code>MobileApp</code>, and keep full permissions.</li>
+          <li>Copy the generated token and paste it above!</li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- Floating Compose FAB -->
+    <button class="fab-compose" id="fabCompose" title="Compose New Email">
+      ✏️
+    </button>
+
+    <!-- Bottom Navigation Bar -->
+    <nav class="bottom-nav">
+      <button class="nav-item active" data-tab="tabInbox">
+        <span class="nav-icon">📬</span>
+        <span>Inbox</span>
+        <span class="nav-badge" id="navInboxBadge" style="display: none;">0</span>
+      </button>
+
+      <button class="nav-item" data-tab="tabAccounts">
+        <span class="nav-icon">👥</span>
+        <span>Accounts</span>
+      </button>
+
+      <button class="nav-item" data-tab="tabSettings">
+        <span class="nav-icon">⚙️</span>
+        <span>Server</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- MODAL: ACCOUNT SWITCHER BOTTOM SHEET         -->
+  <!-- ============================================ -->
+  <div class="modal-overlay" id="accountSwitcherModal">
+    <div class="modal-sheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header">
+        <h3 class="sheet-title">Switch Mailbox</h3>
+        <button class="icon-btn" id="closeSwitcherBtn">✕</button>
+      </div>
+      <p style="font-size: 13px; color: var(--text-muted);">
+        Select any mailbox to view its dedicated inbox or switch to Unified View.
+      </p>
+
+      <div style="display: flex; flex-direction: column; gap: 8px; max-height: 50vh; overflow-y: auto;" id="accountSwitcherList">
+        <!-- Rendered dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- MODAL: COMPOSE EMAIL                         -->
+  <!-- ============================================ -->
+  <div class="modal-overlay" id="composeModal">
+    <div class="modal-sheet" style="max-height: 94vh;">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header">
+        <h3 class="sheet-title">New Email</h3>
+        <button class="icon-btn" id="closeComposeBtn">✕</button>
+      </div>
+
+      <form id="composeForm" style="display: flex; flex-direction: column; gap: 12px;">
+        <div class="form-group">
+          <label class="form-label" for="composeFrom">From Account</label>
+          <select id="composeFrom" class="form-select" required>
+            <!-- Populated with all 17+ accounts -->
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="composeTo">To Recipient</label>
+          <input type="email" id="composeTo" class="form-input" placeholder="e.g. client@example.com" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="composeSubject">Subject</label>
+          <input type="text" id="composeSubject" class="form-input" placeholder="Subject" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="composeBody">Message</label>
+          <textarea id="composeBody" class="form-textarea" rows="7" placeholder="Write your message here..." required></textarea>
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-top: 8px;">
+          <button type="button" class="btn-secondary" id="cancelComposeBtn" style="flex: 1;">Cancel</button>
+          <button type="submit" class="btn-primary" style="flex: 2;">🚀 Send Email</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- MODAL: CREATE NEW CPANEL EMAIL ACCOUNT       -->
+  <!-- ============================================ -->
+  <div class="modal-overlay" id="createAccountModal">
+    <div class="modal-sheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header">
+        <h3 class="sheet-title">+ Create Email Account</h3>
+        <button class="icon-btn" id="closeCreateAccountBtn">✕</button>
+      </div>
+
+      <form id="createAccountForm" style="display: flex; flex-direction: column; gap: 12px;">
+        <div class="form-group">
+          <label class="form-label">Email Address</label>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <input type="text" id="newAccUser" class="form-input" placeholder="e.g. billing" required style="flex: 1;">
+            <span style="font-weight: 700; color: var(--text-dim);">@</span>
+            <select id="newAccDomain" class="form-select" style="flex: 1.2;" required>
+              <!-- Populated domains -->
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <label class="form-label" for="newAccPassword">Password</label>
+            <button type="button" id="btnGenPassword" style="background: none; border: none; color: var(--accent-primary); font-size: 11px; cursor: pointer; font-weight: 600;">
+              ⚡ Generate Strong
+            </button>
+          </div>
+          <input type="text" id="newAccPassword" class="form-input" placeholder="Enter secure password" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="newAccQuota">Storage Quota</label>
+          <select id="newAccQuota" class="form-select">
+            <option value="1024">1024 MB (1 GB)</option>
+            <option value="2048">2048 MB (2 GB)</option>
+            <option value="5120">5120 MB (5 GB)</option>
+            <option value="0">Unlimited (∞)</option>
+          </select>
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-top: 10px;">
+          <button type="button" class="btn-secondary" id="cancelCreateAccBtn" style="flex: 1;">Cancel</button>
+          <button type="submit" class="btn-primary" style="flex: 2;">Create Account</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- MODAL: MANAGE CPANEL ACCOUNT (Quota / Passwd)-->
+  <!-- ============================================ -->
+  <div class="modal-overlay" id="manageAccountModal">
+    <div class="modal-sheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header">
+        <h3 class="sheet-title" id="manageModalEmailTitle">Manage Account</h3>
+        <button class="icon-btn" id="closeManageModalBtn">✕</button>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 14px;">
+        <!-- Modify Quota Form -->
+        <div style="background: var(--bg-tertiary); padding: 12px; border-radius: var(--radius-sm);">
+          <label class="form-label">Update Storage Quota</label>
+          <div style="display: flex; gap: 8px; margin-top: 6px;">
+            <select id="manageQuotaSelect" class="form-select" style="flex: 2;">
+              <option value="1024">1 GB (1024 MB)</option>
+              <option value="2048">2 GB (2048 MB)</option>
+              <option value="5120">5 GB (5120 MB)</option>
+              <option value="10240">10 GB (10240 MB)</option>
+              <option value="0">Unlimited</option>
+            </select>
+            <button class="btn-primary" id="btnSaveQuota" style="flex: 1; font-size: 13px;">Save</button>
+          </div>
+        </div>
+
+        <!-- Reset Password Form -->
+        <div style="background: var(--bg-tertiary); padding: 12px; border-radius: var(--radius-sm);">
+          <label class="form-label">Reset Password</label>
+          <div style="display: flex; gap: 8px; margin-top: 6px;">
+            <input type="password" id="manageNewPassword" class="form-input" placeholder="New Password" style="flex: 2;">
+            <button class="btn-primary" id="btnSavePassword" style="flex: 1; font-size: 13px;">Update</button>
+          </div>
+        </div>
+
+        <!-- Suspend / Delete Danger Zone -->
+        <div style="display: flex; gap: 10px; margin-top: 8px;">
+          <button class="btn-secondary" id="btnToggleSuspend" style="flex: 1; color: var(--warning); border-color: rgba(245, 158, 11, 0.3);">
+            ⏸️ Suspend
+          </button>
+          <button class="btn-secondary" id="btnDeleteAccount" style="flex: 1; color: var(--danger); border-color: rgba(239, 68, 68, 0.3);">
+            🗑️ Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- FULL SCREEN OVERLAY: EMAIL DETAIL READER    -->
+  <!-- ============================================ -->
+  <div class="email-detail-overlay" id="emailDetailView">
+    <div class="email-detail-header">
+      <button class="icon-btn" id="closeEmailDetailBtn">←</button>
+      <div style="display: flex; gap: 8px;">
+        <button class="icon-btn" id="replyEmailBtn" title="Reply">↩️</button>
+        <button class="icon-btn" id="deleteEmailDetailBtn" title="Delete">🗑️</button>
+      </div>
+    </div>
+
+    <div class="email-detail-body-container">
+      <div class="email-meta-sender-card">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div class="account-avatar" id="detailAvatar" style="background: var(--accent-gradient);">M</div>
+          <div style="display: flex; flex-direction: column;">
+            <strong id="detailFromName" style="font-size: 14px;">Sender Name</strong>
+            <span id="detailFromEmail" style="font-size: 12px; color: var(--text-dim);">sender@example.com</span>
+          </div>
+        </div>
+        <div style="text-align: right;">
+          <span id="detailDate" style="font-size: 11px; color: var(--text-dim);">Date</span>
+          <br>
+          <span class="target-account-tag" id="detailAccountBadge">to me</span>
+        </div>
+      </div>
+
+      <h2 class="email-detail-subject" id="detailSubject">Subject</h2>
+
+      <div class="email-message-body" id="detailBody">
+        Email body content...
+      </div>
+
+      <!-- Attachments Container -->
+      <div id="detailAttachmentsContainer" style="display: flex; flex-direction: column; gap: 6px; margin-top: 14px;">
+      </div>
+    </div>
+  </div>
+
+  <!-- Application Logic Scripts -->
+  <script src="/js/api.js?v=2"></script>
+  <script src="/js/app.js?v=2"></script>
+</body>
+</html>

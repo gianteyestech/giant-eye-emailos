@@ -1,0 +1,17 @@
+{
+  "name": "giant-eye-emailos",
+  "version": "1.0.0",
+  "description": "Giant Eye EmailOS - Unified Cross-Platform cPanel Mail Management and Webmail Client",
+  "main": "server/server.js",
+  "scripts": {
+    "start": "node server/server.js",
+    "dev": "node server/server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "cors": "^2.8.5",
+    "axios": "^1.7.9",
+    "dotenv": "^16.4.7",
+    "nodemailer": "^6.9.16"
+  }
+}

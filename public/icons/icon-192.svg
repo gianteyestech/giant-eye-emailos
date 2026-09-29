@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4f46e5" />
+      <stop offset="50%" stop-color="#7c3aed" />
+      <stop offset="100%" stop-color="#ec4899" />
+    </linearGradient>
+    <linearGradient id="mailGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="100%" stop-color="#f1f5f9" />
+    </linearGradient>
+  </defs>
+  <!-- Rounded Base Icon -->
+  <rect width="512" height="512" rx="128" fill="url(#bgGrad)"/>
+  <!-- Envelope Shadow -->
+  <rect x="100" y="160" width="312" height="210" rx="30" fill="rgba(0,0,0,0.15)"/>
+  <!-- Envelope Body -->
+  <rect x="96" y="150" width="320" height="212" rx="28" fill="url(#mailGrad)"/>
+  <!-- Envelope Flap -->
+  <path d="M96 178 L256 295 L416 178" stroke="#6366f1" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <!-- cPanel Stylized Flame/C dot -->
+  <circle cx="256" cy="220" r="26" fill="#f97316"/>
+  <!-- Notification Dot -->
+  <circle cx="390" cy="140" r="32" fill="#ef4444" stroke="#ffffff" stroke-width="8"/>
+</svg>
