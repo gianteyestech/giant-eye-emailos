@@ -263,7 +263,27 @@ async function loadAllData() {
 
 async function loadServerConfig() {
   try {
-    const res = await API.getConfig();
+    let res = await API.getConfig();
+
+    // If server restarted (e.g. cold start on Vercel), restore from localStorage
+    if (!res.isConfigured) {
+      const saved = localStorage.getItem('emailos_config');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (parsed.serverUrl && parsed.username && parsed.apiToken) {
+            const setRes = await API.setConfig(parsed);
+            if (setRes.success && setRes.config) {
+              res = setRes.config;
+              await loadAllData();
+            }
+          }
+        } catch (e) {
+          console.warn('Failed to restore config from localStorage', e);
+        }
+      }
+    }
+
     if (res.serverUrl) dom.cfgServerUrl.value = res.serverUrl;
     if (res.username) dom.cfgUsername.value = res.username;
     if (res.hasToken) dom.cfgApiToken.placeholder = '•••••••••••••••• (Configured)';
@@ -920,22 +940,24 @@ async function handleSaveServerConfig(e) {
       serverUrl,
       username,
       apiToken,
-      authType: 'token'
+      authType: 'auto'
     });
 
     if (res.success) {
-      showToast('cPanel credentials saved successfully!', 'success');
-      loadServerConfig();
-      loadAllData();
+      localStorage.setItem('emailos_config', JSON.stringify({ serverUrl, username, apiToken, authType: 'auto' }));
+      showToast('cPanel credentials saved successfully! Loading mailboxes...', 'success');
+      await loadServerConfig();
+      await loadAllData();
       switchTab('tabInbox');
     }
   } catch (err) {
-    showToast('Failed to save settings', 'error');
+    showToast('Failed to save settings: ' + err.message, 'error');
   }
 }
 
 async function handleLogout() {
   try {
+    localStorage.removeItem('emailos_config');
     await API.logout();
     state.accounts = [];
     state.domains = [];
@@ -953,7 +975,7 @@ async function handleLogout() {
 
     // Update UI headers
     if (dom.connectionStatusSubtitle) {
-      dom.connectionStatusSubtitle.textContent = 'Disconnected';
+      dom.connectionStatusSubtitle.textContent = 'Not Connected';
       dom.connectionStatusSubtitle.style.color = 'var(--text-dim)';
     }
     if (dom.statTotalAccounts) dom.statTotalAccounts.textContent = '0';
@@ -967,7 +989,7 @@ async function handleLogout() {
     updateHeaderCurrentAccount();
 
     switchTab('tabSettings');
-    showToast('Disconnected from cPanel. Ready to connect your next account!', 'info', 4000);
+    showToast('Disconnected from cPanel.', 'info', 4000);
   } catch (err) {
     showToast('Error during logout: ' + (err.message || ''), 'error');
   }
@@ -975,13 +997,25 @@ async function handleLogout() {
 window.handleLogout = handleLogout;
 
 async function handleTestConnection() {
-  showToast('Testing connection to cPanel server...', 'info');
+  const serverUrl = dom.cfgServerUrl.value.trim();
+  const username = dom.cfgUsername.value.trim();
+  const apiToken = dom.cfgApiToken.value.trim();
+
+  if (!serverUrl || !username || !apiToken) {
+    showToast('Please fill in Server URL, Username, and Password/Token first.', 'warning');
+    return;
+  }
+
+  showToast('Connecting to cPanel server...', 'info');
   try {
-    const res = await API.testConnection();
+    const res = await API.testConnection({ serverUrl, username, apiToken, authType: 'auto' });
     if (res.success) {
+      localStorage.setItem('emailos_config', JSON.stringify({ serverUrl, username, apiToken, authType: 'auto' }));
       showToast(res.message, 'success', 5000);
+      await loadServerConfig();
+      await loadAllData();
     } else {
-      showToast(res.message, 'error', 6000);
+      showToast(res.message, 'error', 7000);
     }
   } catch (err) {
     showToast('Connection test error: ' + err.message, 'error');

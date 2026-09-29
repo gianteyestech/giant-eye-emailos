@@ -16,10 +16,11 @@ const API = {
     return res.json();
   },
 
-  async testConnection() {
+  async testConnection(configData = null) {
     const res = await fetch('/api/config/test', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 'Content-Type': 'application/json' },
+      body: configData ? JSON.stringify(configData) : undefined
     });
     return res.json();
   },

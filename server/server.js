@@ -35,6 +35,10 @@ app.post('/api/config/logout', (req, res) => {
 
 // Test connection to live cPanel
 app.post('/api/config/test', async (req, res) => {
+  const { serverUrl, username, apiToken, authType } = req.body || {};
+  if (serverUrl && username && apiToken) {
+    cpanelClient.setConfig({ serverUrl, username, apiToken, authType: authType || 'auto' });
+  }
   const result = await cpanelClient.testConnection();
   res.json(result);
 });
